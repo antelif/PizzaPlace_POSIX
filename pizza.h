@@ -17,3 +17,6 @@ void *pack(void *args);
 
 // Used by delivery threads to deliver pizzas.
 void *deliver(void *args);
+
+// Reads all variables from a TXT file and assigns them.
+void readFile();
