@@ -7,7 +7,7 @@ void *order(void *args);
 int generateRandomNumber(int min, int max, unsigned int *seed);
 
 // Number of available tels.
-const int TELS = 2;
+const int TELS = 1;
 // Number of available cooks.
 const int COOKS = 2;
 // Number of available ovens;
@@ -16,8 +16,8 @@ const int OVENS = 2;
 const int DELIVERERS = 3;
 
 // Minimum and maximum time to order.
-const int T_ORDER_LOW = 1;
-const int T_ORDER_HIGH = 5;
+const int T_ORDER_LOW = 5;
+const int T_ORDER_HIGH = 6;
 
 // Minimum and maximum time to process payment.
 const int T_PAYMENT_LOW = 1;
@@ -42,4 +42,4 @@ const int N_ORDER_HIGH = OVENS;
 const double COST = 7.5;
 
 // Probability the payment fails.
-const double P = 0.15;
+const double P = 0.10;

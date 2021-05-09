@@ -34,7 +34,11 @@ int totalCoolTime = 0;
 // Seed to create random numbers
 unsigned int seed;
 
+int printReady = 0;
+
 // Mutexes.
+pthread_mutex_t printMutex;
+
 pthread_mutex_t waitTimeMutex;
 pthread_mutex_t orderTimeMutex;
 pthread_mutex_t coolTimeMutex;
@@ -49,6 +53,8 @@ pthread_mutex_t packeterMutex;
 pthread_mutex_t deliverersMutex;
 
 // Conditions.
+pthread_cond_t printCond;
+
 pthread_cond_t telsCond;
 pthread_cond_t cooksCond;
 pthread_cond_t ovensCond;
@@ -56,9 +62,7 @@ pthread_cond_t packeterCond;
 pthread_cond_t delivererCond;
 
 int generateRandomNumber(int min, int max, unsigned int * seed){
-
-  int randomNumber = rand_r(seed)%(max-min)+min;
-  return randomNumber;
+  return rand_r(seed)%(max-min)+min;
 }
 
 void *order(void *args){
@@ -69,13 +73,13 @@ void *order(void *args){
   int rc;
 
   // Start time.
-  struct timespec start, end;
+  struct timespec startWait, endWait, startCool, endPacket,endOrder;
   int orderTime;
   int waitTime;
   int coolTime;
   int deliveryTime;
 
-  int startWaitTime = clock_gettime(CLOCK_REALTIME, &start);
+  int startWaitTime = clock_gettime(CLOCK_REALTIME, &startWait);
 
   // Wait for available Tel.-----------------------------
   rc = pthread_mutex_lock(&telsMutex);
@@ -95,10 +99,9 @@ void *order(void *args){
     pthread_exit(&rc);
   }
 
-  int endWaitTime = clock_gettime(CLOCK_REALTIME, &end);
-
-  waitTime = end.tv_sec - start.tv_sec;
-  printf("Customer %d: Total wait time %d -> [%ld, %ld].\n",*id, waitTime, start.tv_sec, end.tv_sec);
+  // Calculate wait time for this order.
+  int endWaitTime = clock_gettime(CLOCK_REALTIME, &endWait);
+  waitTime = endWait.tv_sec - startWait.tv_sec;
 
   // Add this waitTime to totalWaitTime.
   rc = pthread_mutex_lock(&waitTimeMutex);
@@ -122,23 +125,58 @@ void *order(void *args){
   double pSuccess = (double)rand_r(&seed)/(double)RAND_MAX;
 
   sleep(generateRandomNumber(T_PAYMENT_LOW, T_PAYMENT_HIGH, &seed));
+
   if(pSuccess < P){
+    rc = pthread_mutex_lock(&printMutex);
+    if (rc != 0) {
+      perror("ERROR: Mutex lock failed.\n");
+      pthread_exit(&rc);
+    }
+    while(printReady != 0){
+      pthread_cond_wait(&printCond, &printMutex);
+    }
     printf("Order %d: Payment failed. Canceling...\n",*id);
+    printReady = 0;
+    rc = pthread_mutex_unlock(&printMutex);
+    if (rc != 0) {
+      perror("ERROR: Mutex unlock failed.\n");
+      pthread_exit(&rc);
+    }
 
     // Increase counter of failed orders.
-    rc = pthread_mutex_lock(&ordersFailMutex);
+    rc = pthread_mutex_lock(&telsMutex);
     if (rc != 0) {
       perror("ERROR: Mutex lock failed.\n");
       pthread_exit(&rc);
     }
     unsuccessfulOrders++;
-    rc = pthread_mutex_unlock(&ordersFailMutex);
+    availableTels++;
+    pthread_cond_broadcast(&telsCond);
+
+    rc = pthread_mutex_unlock(&telsMutex);
     if (rc != 0) {
       perror("ERROR: Mutex unlock failed.\n");
       pthread_exit(&rc);
     }
+    pthread_exit(0);
   }else{
+    if (rc != 0) {
+      perror("ERROR: Mutex lock failed.\n");
+      pthread_exit(&rc);
+    }
+    while(printReady != 0){
+      pthread_cond_wait(&printCond, &printMutex);
+    }
+
     printf("Order %d: Payment OK.\n", *id);
+    printReady = 0;
+    pthread_cond_broadcast(&printCond);
+
+    rc = pthread_mutex_unlock(&printMutex);
+    if (rc != 0) {
+      perror("ERROR: Mutex unlock failed.\n");
+      pthread_exit(&rc);
+    }
 
     // Increase total revenue.
     pthread_mutex_lock(&revenueMutex);
@@ -182,7 +220,6 @@ void *order(void *args){
   }
 
   // Prepare pizzas.
-  printf("Order %d: Preparing...\n",*id);
   sleep(T_PREP * numPizzas);
 
   // Wait for available ovens.
@@ -218,11 +255,10 @@ void *order(void *args){
   rc = pthread_mutex_unlock(&cooksMutex);
 
   // Wait for pizzas to bake.
-  printf("Order %d: Baking...\n",*id);
   sleep(T_BAKE);
 
   // Start time for cooling time of pizzas.
-  int startCoolTime = clock_gettime(CLOCK_REALTIME, &start);
+  int startCoolTime = clock_gettime(CLOCK_REALTIME, &startCool);
 
   // Wait for packeter.
   rc = pthread_mutex_lock(&packeterMutex);
@@ -252,8 +288,26 @@ void *order(void *args){
   }
   rc = pthread_mutex_unlock(&ovensMutex);
 
-  printf("Order %d: Packing...\n",*id);
   sleep(T_PACK * numPizzas);
+
+  int readyOrder = clock_gettime(CLOCK_REALTIME, &endPacket);
+
+  rc = pthread_mutex_lock(&printMutex);
+  if (rc != 0) {
+    perror("ERROR: Mutex lock failed.\n");
+    pthread_exit(&rc);
+  }
+  while(printReady != 0){
+    pthread_cond_wait(&printCond, &printMutex);
+  }
+  printf("Order %d: Ready to deliver after %ld minutes.\n",*id, endPacket.tv_sec-startWait.tv_sec);
+  printReady = 0;
+  pthread_cond_broadcast(&printCond);
+  rc = pthread_mutex_unlock(&printMutex);
+  if (rc != 0) {
+    perror("ERROR: Mutex unlock failed.\n");
+    pthread_exit(&rc);
+  }
 
   // Free packeter and signal other threads.
   rc = pthread_mutex_lock(&packeterMutex);
@@ -290,8 +344,8 @@ void *order(void *args){
   }
   deliveryTime = generateRandomNumber(T_DELIVER_LOW, T_DELIVER_HIGH, &seed);
 
-  int endCoolTime = clock_gettime(CLOCK_REALTIME, &end);
-  coolTime = end.tv_sec - start.tv_sec;
+  int endCoolTime = clock_gettime(CLOCK_REALTIME, &endOrder);
+  coolTime = endOrder.tv_sec - startCool.tv_sec;
 
   // Update total cooling time.
   rc = pthread_mutex_lock(&coolTimeMutex);
@@ -308,9 +362,8 @@ void *order(void *args){
     perror("ERROR: Mutex unlock failed.\n");
     pthread_exit(&rc);
   }
-  printf("Order %d: Total cool time %d -> [%ld, %ld].\n",*id, coolTime, start.tv_sec, end.tv_sec);
 
-  orderTime = end.tv_sec- start.tv_sec;
+  orderTime = endOrder.tv_sec- startWait.tv_sec;
   // Update total order time.
   rc = pthread_mutex_lock(&orderTimeMutex);
   if (rc != 0) {
@@ -326,10 +379,19 @@ void *order(void *args){
     perror("ERROR: Mutex unlock failed.\n");
     pthread_exit(&rc);
   }
-  printf("Order %d: Total order time %d -> [%ld, %ld].\n",*id, orderTime, start.tv_sec, end.tv_sec);
 
-  printf("Order %d: Delivering...\n",*id);
-  sleep(deliveryTime * 2);
+  sleep(deliveryTime);
+
+  pthread_mutex_lock(&printMutex);
+  while(printReady != 0){
+    pthread_cond_wait(&printCond, &printMutex);
+  }
+  printf("Order %d: Order completed after %ld minutes.\n",*id, endOrder.tv_sec-startWait.tv_sec);
+  printReady=0;
+  pthread_cond_broadcast(&printCond);
+  pthread_mutex_unlock(&printMutex);
+
+  sleep(deliveryTime);
 
   // Free deliverers.
   rc = pthread_mutex_lock(&deliverersMutex);
@@ -344,8 +406,6 @@ void *order(void *args){
     perror("ERROR: Mutex unlock failed.\n");
     pthread_exit(&rc);
   }
-
-  printf("Order %d: Completed.\n",*id);
 
   pthread_exit(0);
 }
