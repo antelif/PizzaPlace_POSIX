@@ -1,22 +1,45 @@
 #include <stdio.h>
 
 // Used by customer threads to order pizzas.
-void *giveOrder(void *args);
+void *order(void *args);
 
-// Used by tel threads to register orders and create payments.
-void *receiveOrder(void *ars);
+// Generate random number given a minimum and a maximum number.
+int generateRandomNumber(int min, int max, unsigned int *seed);
 
-// Used by cook threads to prepare pizzas for given time.
-void *cook(void *args);
+// Number of available tels.
+const int TELS = 2;
+// Number of available cooks.
+const int COOKS = 2;
+// Number of available ovens;
+const int OVENS = 2;
+// Number of avaiable deliverers.
+const int DELIVERERS = 3;
 
-// Used by ovens threads to bake pizzas for given time.
-void *bake(void *args);
+// Minimum and maximum time to order.
+const int T_ORDER_LOW = 1;
+const int T_ORDER_HIGH = 5;
 
-// Used by packer thread to pack available pizzas.
-void *pack(void *args);
+// Minimum and maximum time to process payment.
+const int T_PAYMENT_LOW = 1;
+const int T_PAYMENT_HIGH = 10;
 
-// Used by delivery threads to deliver pizzas.
-void *deliver(void *args);
+// Minimum and maximum time to deliver order.
+const int T_DELIVER_LOW = 1;
+const int T_DELIVER_HIGH = 5;
 
-// Reads all variables from a TXT file and assigns them.
-void readFile();
+// Time to prepapare a pizza.
+const int T_PREP = 2;
+// Time to bake a pizza.
+const int T_BAKE = 3;
+// Time to pack a pizza.
+const int T_PACK = 5;
+
+// Minimum and maximum number of pizzas in order.
+const int N_ORDER_LOW = 1;
+const int N_ORDER_HIGH = OVENS;
+
+// Cost of single pizza.
+const double COST = 7.5;
+
+// Probability the payment fails.
+const double P = 0.15;
