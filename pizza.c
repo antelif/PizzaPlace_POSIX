@@ -61,8 +61,29 @@ pthread_cond_t ovensCond;
 pthread_cond_t packeterCond;
 pthread_cond_t delivererCond;
 
+void mutexLock(pthread_mutex_t *args){
+  int rc = pthread_mutex_lock(args);
+  if (rc != 0) {
+    perror("ERROR: Mutex lock failed.\n");
+    pthread_exit(&rc);
+  }
+}
+
+void mutexUnlock(pthread_mutex_t *args){
+  int rc = pthread_mutex_unlock(args);
+  if (rc != 0) {
+    perror("ERROR: Mutex unlock failed.\n");
+    pthread_exit(&rc);
+  }
+}
+
 int generateRandomNumber(int min, int max, unsigned int * seed){
-  return rand_r(seed)%(max-min)+min;
+  int randomNumber = rand_r(seed);
+  // printf("Random number %d\n",randomNumber);
+  randomNumber = (randomNumber%(max-min+1))+min;
+  // printf("Random number after modulo %d\n", randomNumber);
+  return randomNumber;
+  // return rand_r(seed)%(max-min)+min;
 }
 
 void *order(void *args){
@@ -82,22 +103,14 @@ void *order(void *args){
   int startWaitTime = clock_gettime(CLOCK_REALTIME, &startWait);
 
   // Wait for available Tel.-----------------------------
-  rc = pthread_mutex_lock(&telsMutex);
-  if(rc != 0){
-    perror("ERROR: Mutex lock failed.\n");
-    pthread_exit(&rc);
-  }
+  mutexLock(&telsMutex);
 
   while(availableTels == 0){
     pthread_cond_wait(&telsCond, &telsMutex);
   }
 
   availableTels--;
-  rc = pthread_mutex_unlock(&telsMutex);
-  if (rc != 0) {
-    perror("ERROR: Mutex unlock failed.\n");
-    pthread_exit(&rc);
-  }
+  mutexUnlock(&telsMutex);
 
   // Calculate wait time for this order.
   int endWaitTime = clock_gettime(CLOCK_REALTIME, &endWait);
