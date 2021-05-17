@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "pizza.h"
+#include "p3090025_p3150254_p3160221.h"
 
 // Number of threads to be created - number of orders - command line argument.
 int CUSTOMERS;
@@ -481,7 +481,7 @@ int main(int argc, char *argv[]){
   destroyMutex(&waitTimeMutex);
   destroyMutex(&orderTimeMutex);
   destroyMutex(&coolTimeMutex);
-  
+
   destroyMutex(&ordersFailMutex);
   destroyMutex(&revenueMutex);
 

@@ -1,2 +1,2 @@
-gcc -pthread pizza.c
+gcc -pthread p3090025_p3150254_p3160221.c
 ./a.out 100 1000
