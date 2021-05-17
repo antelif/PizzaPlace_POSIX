@@ -14,7 +14,7 @@ int availableTels = TELS;
 int availableCooks = COOKS;
 int availableOvens = OVENS;
 int availablePacketers = 1;
-int availableDeliveres = DELIVERERS;
+int availableDeliverers = DELIVERERS;
 
 // Total revenue at the end of the day.
 int revenue = 0;
@@ -322,15 +322,16 @@ void *order(void *args){
   // Wait for available deliverers.
   mutexLock(&deliverersMutex);
 
-  while(availableDeliveres == 0){
+  while(availableDeliverers == 0){
     pthread_cond_wait(&delivererCond, &deliverersMutex);
   }
-  availableDeliveres--;
+  availableDeliverers--;
   mutexUnlock(&deliverersMutex);
 
-  sleep(deliveryTime);
+
 
   deliveryTime = generateRandomNumber(T_DELIVER_LOW, T_DELIVER_HIGH, &seed);
+    sleep(deliveryTime);
 
   int endCoolTime = clock_gettime(CLOCK_REALTIME, &endOrder);
   coolTime = endOrder.tv_sec - startCool.tv_sec;
@@ -373,7 +374,7 @@ void *order(void *args){
   // Free deliverers.
   mutexLock(&deliverersMutex);
 
-  availableDeliveres++;
+  availableDeliverers++;
   pthread_cond_broadcast(&delivererCond);
   mutexUnlock(&deliverersMutex);
 
