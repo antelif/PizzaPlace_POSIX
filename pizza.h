@@ -6,8 +6,19 @@ void *order(void *args);
 // Generate random number given a minimum and a maximum number.
 int generateRandomNumber(int min, int max, unsigned int *seed);
 
+// Lock mutex and perform checks.
 void mutexLock(pthread_mutex_t* mutex);
+
+// Unlock mutex and perform checks.
 void mutexUnlock(pthread_mutex_t* mutex);
+
+// Signal threads waiting and perform checks.
+void condBroadcast(pthread_cond_t* cond);
+
+// Wait and perform checks.
+void condWait(pthread_cond_t* cond, pthread_mutex_t* mutex);
+
+void destroyMutex(pthread_mutex_t *mutex);
 
 // Number of available tels.
 const int TELS = 3;
