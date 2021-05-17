@@ -1,3 +1,2 @@
 gcc -pthread pizza.c
-echo "script compiled"
-./a.out 100 1000
+./a.out 20 1000

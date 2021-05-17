@@ -147,6 +147,9 @@ void *order(void *args){
   mutexLock(&waitTimeMutex);
 
   totalWaitTime += waitTime;
+  if(maxWaitTime < totalWaitTime){
+    maxWaitTime = totalWaitTime ;
+  }
 
   mutexUnlock(&waitTimeMutex);
 
@@ -325,6 +328,8 @@ void *order(void *args){
   availableDeliveres--;
   mutexUnlock(&deliverersMutex);
 
+  sleep(deliveryTime);
+
   deliveryTime = generateRandomNumber(T_DELIVER_LOW, T_DELIVER_HIGH, &seed);
 
   int endCoolTime = clock_gettime(CLOCK_REALTIME, &endOrder);
@@ -348,8 +353,6 @@ void *order(void *args){
     maxOrderTime = orderTime;
   }
   mutexUnlock(&orderTimeMutex);
-
-  sleep(deliveryTime);
 
   mutexLock(&printMutex);
   while(printReady != 0){
