@@ -6,7 +6,7 @@
 
 #include "pizza.h"
 
-// Number threads to be created for each category.
+// Number of threads to be created - number of orders - command line argument.
 int CUSTOMERS;
 
 // Availability of employees.
@@ -18,22 +18,29 @@ int availableDeliverers = DELIVERERS;
 
 // Total revenue at the end of the day.
 int revenue = 0;
-
+// Number of unsuccessful orders.
 int unsuccessfulOrders = 0;
 
-// Time statistics.
+// Maximum and total time from the moment the Customer calls till they connect to
+// an availbleTel.
 int maxWaitTime = 0;
 int totalWaitTime = 0;
 
-int maxOrderTime = 0;
-int totalOrderTime = 0;
-
+// Maximum and total time from the moment the pizzas get out of the oven till
+// they are delivered to the customer.
 int maxCoolTime = 0;
 int totalCoolTime = 0;
 
-// Seed to create random numbers
+// Maximum and total time from the moment the Customer calls till they receive
+// their pizzas.
+int maxOrderTime = 0;
+int totalOrderTime = 0;
+
+// Seed to create random numbers - command line argument.
 unsigned int seed;
 
+// Condition for a thread to be permitted to use output.
+// 0: eligible - 1: not eligible
 int printReady = 0;
 
 // Mutexes.
@@ -59,7 +66,7 @@ pthread_cond_t telsCond;
 pthread_cond_t cooksCond;
 pthread_cond_t ovensCond;
 pthread_cond_t packeterCond;
-pthread_cond_t delivererCond;
+pthread_cond_t deliverersCond;
 
 // Lock mutex and perform checks.
 void mutexLock(pthread_mutex_t *args){
@@ -79,8 +86,16 @@ void mutexUnlock(pthread_mutex_t *args){
   }
 }
 
+// Destroy Mutex and perform checks.
+void destroyMutex(pthread_mutex_t* mutex){
+  int rc = pthread_mutex_destroy(mutex);
+  if(rc != 0){
+    perror("ERROR: Mutex destroy failed.\n");
+  }
+}
+
 // Signal threads waiting and perform checks.
-void condBroadcast(pthread_cond_t* cond){
+void condSignal(pthread_cond_t* cond){
   int rc = pthread_cond_broadcast(cond);
   if (rc != 0) {
     perror("ERROR: Cond brodcast failed.\n");
@@ -99,12 +114,8 @@ void condWait(pthread_cond_t* cond, pthread_mutex_t* mutex){
 
 // Generate random number given a minimum and a maximum number.
 int generateRandomNumber(int min, int max, unsigned int * seed){
-  int randomNumber = rand_r(seed);
-  // printf("Random number %d\n",randomNumber);
-  randomNumber = (randomNumber%(max-min+1))+min;
-  // printf("Random number after modulo %d\n", randomNumber);
-  return randomNumber;
-  // return rand_r(seed)%(max-min)+min;
+
+  return ((rand_r(seed))%(max-min+1))+min;
 }
 
 // Used by customer threads to order pizzas.
@@ -129,7 +140,7 @@ void *order(void *args){
   // 1. ORDERING ---------------------------------------------------------------
   startWaitTime = clock_gettime(CLOCK_REALTIME, &startWait);
 
-  // Wait fot available TEL.
+  // Wait for an available TEL.
   mutexLock(&telsMutex);
 
   while(availableTels == 0){
@@ -153,7 +164,7 @@ void *order(void *args){
 
   mutexUnlock(&waitTimeMutex);
 
-  // Customer chooses a number of pizzas.
+  // Customer chooses number of pizzas.
   int numPizzas = generateRandomNumber(N_ORDER_LOW, N_ORDER_HIGH, &seed);
 
   //2. PAYMENT -----------------------------------------------------------------
@@ -181,7 +192,7 @@ void *order(void *args){
     mutexLock(&printMutex);
 
     printReady = 0;
-    condBroadcast(&printCond);
+    condSignal(&printCond);
 
     mutexUnlock(&printMutex);
 
@@ -205,13 +216,14 @@ void *order(void *args){
     }
     printReady = 1;
 
+
     mutexUnlock(&printMutex);
 
     printf("Order %d: Payment OK.\n", *id);
 
     mutexLock(&printMutex);
     printReady = 0;
-    condBroadcast(&printCond);
+    condSignal(&printCond);
 
     mutexUnlock(&printMutex);
 
@@ -225,7 +237,7 @@ void *order(void *args){
   mutexLock(&telsMutex);
 
   availableTels++;
-  condBroadcast(&telsCond);
+  condSignal(&telsCond);
 
   mutexUnlock(&telsMutex);
 
@@ -262,7 +274,7 @@ void *order(void *args){
   mutexLock(&cooksMutex);
 
   availableCooks++;
-  condBroadcast(&cooksCond);
+  condSignal(&cooksCond);
 
   mutexUnlock(&cooksMutex);
 
@@ -288,7 +300,7 @@ void *order(void *args){
   mutexLock(&ovensMutex);
 
   availableOvens += numPizzas;
-  condBroadcast(&ovensCond);
+  condSignal(&ovensCond);
 
   mutexUnlock(&ovensMutex);
 
@@ -314,7 +326,7 @@ void *order(void *args){
   mutexLock(&packeterMutex);
 
   availablePacketers += 1;
-  condBroadcast(&packeterCond);
+  condSignal(&packeterCond);
 
   mutexUnlock(&packeterMutex);
 
@@ -323,15 +335,13 @@ void *order(void *args){
   mutexLock(&deliverersMutex);
 
   while(availableDeliverers == 0){
-    pthread_cond_wait(&delivererCond, &deliverersMutex);
+    pthread_cond_wait(&deliverersCond, &deliverersMutex);
   }
   availableDeliverers--;
   mutexUnlock(&deliverersMutex);
 
-
-
   deliveryTime = generateRandomNumber(T_DELIVER_LOW, T_DELIVER_HIGH, &seed);
-    sleep(deliveryTime);
+  sleep(deliveryTime);
 
   int endCoolTime = clock_gettime(CLOCK_REALTIME, &endOrder);
   coolTime = endOrder.tv_sec - startCool.tv_sec;
@@ -346,6 +356,7 @@ void *order(void *args){
   mutexUnlock(&coolTimeMutex);
 
   orderTime = endOrder.tv_sec- startWait.tv_sec;
+
   // Update total order time.
   mutexLock(&orderTimeMutex);
 
@@ -375,7 +386,7 @@ void *order(void *args){
   mutexLock(&deliverersMutex);
 
   availableDeliverers++;
-  pthread_cond_broadcast(&delivererCond);
+  pthread_cond_broadcast(&deliverersCond);
   mutexUnlock(&deliverersMutex);
 
   pthread_exit(0);
@@ -398,13 +409,17 @@ int main(int argc, char *argv[]){
     exit(0);
   }
 
+  if(N_ORDER_HIGH > OVENS){
+    printf("N_ORDER_HIGH cannot be greater than OVENS. Exiting...\n");
+    exit(0);
+  }
+
   // Threads
   pthread_t *threads = malloc((CUSTOMERS)*sizeof(pthread_t));
   if (threads == NULL){
     printf("ERROR: Failed to allocate memory for threads");
     exit(-1);
   }
-
 
   // Thread Ids
   int *threadId = malloc((CUSTOMERS)*sizeof(int));
@@ -457,7 +472,18 @@ int main(int argc, char *argv[]){
   free(threadId);
 
   // Destroy mutexes.
+  destroyMutex(&telsMutex);
+  destroyMutex(&cooksMutex);
+  destroyMutex(&ovensMutex);
+  destroyMutex(&packeterMutex);
+  destroyMutex(&deliverersMutex);
 
+  destroyMutex(&waitTimeMutex);
+  destroyMutex(&orderTimeMutex);
+  destroyMutex(&coolTimeMutex);
+  
+  destroyMutex(&ordersFailMutex);
+  destroyMutex(&revenueMutex);
 
   return 1;
 }

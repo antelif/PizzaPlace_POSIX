@@ -16,7 +16,9 @@ void mutexUnlock(pthread_mutex_t* mutex);
 void condBroadcast(pthread_cond_t* cond);
 
 // Wait and perform checks.
-void condWait(pthread_cond_t* cond, pthread_mutex_t* mutex;);
+void condWait(pthread_cond_t* cond, pthread_mutex_t* mutex);
+
+void destroyMutex(pthread_mutex_t *mutex);
 
 // Number of available tels.
 const int TELS = 3;

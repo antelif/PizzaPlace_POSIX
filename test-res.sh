@@ -1,2 +1,2 @@
 gcc -pthread pizza.c
-./a.out 20 1000
+./a.out 100 1000
