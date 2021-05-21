@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "pizza.h"
 
@@ -392,12 +394,28 @@ void *order(void *args){
   pthread_exit(0);
 }
 
+void checkValidArguments(char args[]){
+  if(!isdigit(args[0])){
+    //nothing
+  }
+  for(int i = 0; i < strlen(args); i++){
+    if(!isdigit(args[i])){
+      printf("ERROR: Argument '%s' is invalid. Provide an arithmetic value.\n", args);
+      exit(0);
+    }
+  }
+}
+
 // Main thread
 int main(int argc, char *argv[]){
 
   if(argc != 3){
     printf("ERROR: Invalid number of arguments.\n");
     exit(0);
+  }
+
+  for(int i = 1; i < 3; i++){
+    checkValidArguments(argv[i]);
   }
 
   // Assign command line arguments
@@ -481,7 +499,7 @@ int main(int argc, char *argv[]){
   destroyMutex(&waitTimeMutex);
   destroyMutex(&orderTimeMutex);
   destroyMutex(&coolTimeMutex);
-  
+
   destroyMutex(&ordersFailMutex);
   destroyMutex(&revenueMutex);
 
