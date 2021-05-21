@@ -482,7 +482,7 @@ int main(int argc, char *argv[]){
   printf("Orders: Failed - %d, Succesful - %d\n", unsuccessfulOrders, CUSTOMERS-unsuccessfulOrders);
   printf("Order Time: Avg - %d, Max - %d\n",totalOrderTime/(CUSTOMERS-unsuccessfulOrders), maxOrderTime);
   printf("Wait Time: Avg - %d, Max - %d\n",totalWaitTime/(CUSTOMERS-unsuccessfulOrders), maxWaitTime);
-  printf("Order Time: Avg - %d, Max - %d\n",totalCoolTime/(CUSTOMERS-unsuccessfulOrders), maxCoolTime);
+  printf("Cool Time: Avg - %d, Max - %d\n",totalCoolTime/(CUSTOMERS-unsuccessfulOrders), maxCoolTime);
   printf("--------------------\n");
 
   // Free memory
