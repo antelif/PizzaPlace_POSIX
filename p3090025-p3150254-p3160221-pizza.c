@@ -6,7 +6,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "pizza.h"
+#include "p3090025-p3150254-p3160221-pizza.h"
 
 // Number of threads to be created - number of orders - command line argument.
 int CUSTOMERS;
