@@ -6,6 +6,9 @@ void *order(void *args);
 // Generate random number given a minimum and a maximum number.
 int generateRandomNumber(int min, int max, unsigned int *seed);
 
+// Check that provided arguments are arithmetic values.
+void checkValidArguments(char args[])
+
 // Lock mutex and perform checks.
 void mutexLock(pthread_mutex_t* mutex);
 
